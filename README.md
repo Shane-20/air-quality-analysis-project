@@ -96,6 +96,42 @@ This project analyzes lichen genus distribution alongside pollutant concentratio
 
 ---
 
+## 📂 Project Structure
+
+air-quality-analysis-project/
+├── Air_quality_lichen_genus_data.csv          # Raw input data
+├── air_quality_analysis_project.Rmd           # Main analysis (source)
+├── air_quality_analysis_project.html          # Rendered report (for GitHub Pages)
+├── cleaned_air_quality_data.csv               # Processed data
+├── pca_model.rds
+├── kmeans_model.rds
+├── rf_model.rds
+├── xgb_model.rds
+├── README.md
+├── rf_model.png
+└── geographic_mapping.png
+
+**Note:** The `.rds` files contain the trained models and can be loaded in R using `readRDS()`.
+
+---
+
+## 📥 How to Load the Saved Models
+
+After cloning the repository, you can load the trained models in R/RStudio:
+
+```{r}
+pca_model    <- readRDS("pca_model.rds")
+kmeans_model <- readRDS("kmeans_model.rds")
+rf_model     <- readRDS("rf_model.rds")
+xgb_model    <- readRDS("xgb_model.rds")
+
+# Quick check
+summary(pca_model)
+print(kmeans_model)
+print(rf_model)
+```
+---
+
 ## 📂 Dataset
 
 - **Dataset**: `Air_quality_lichen_genus_data.csv`
