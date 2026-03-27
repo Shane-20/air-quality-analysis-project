@@ -44,8 +44,10 @@ This project analyzes lichen genus distribution alongside pollutant concentratio
 
 ## 📸 Sample Visualizations
 
+* **Random Forest Model**
 ![Random Forest Model](rf_model.png)
 
+* **Geographic Mapping (Air Quality Visualization**
 ![Geographic Mapping (Air Quality Visualization)](geographic_mapping.png)
 
 *(Best viewed on desktop – full interactive version and all plots available in the HTML report)*
