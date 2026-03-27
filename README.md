@@ -54,7 +54,7 @@ This project analyzes lichen genus distribution alongside pollutant concentratio
 
 ## 📈 View the Full Report
 
-👉 **[Open Interactive HTML Report](https://shane-20.github.io/air-quality-lichen-analysis/air_quality_analysis_project.html)**
+👉 **[Open Interactive HTML Report](https://shane-20.github.io/air-quality-analysis-project/air_quality_analysis_project.html)**
 
 *(Best viewed on desktop – contains all interactive visualizations, Leaflet map, model outputs, and detailed insights)*
 
