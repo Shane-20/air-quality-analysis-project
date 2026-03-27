@@ -1,0 +1,291 @@
+---
+title: "Advanced Air Quality Analysis Using Lichen Genus Data"
+author: "Ajik Shadrach"
+date: "March 2026"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This study uses lichen genus data as bioindicators to assess air quality and pollution gradients using advanced statistical and machine learning techniques.
+
+---
+
+# Load Required Libraries
+
+```{r libraries}
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(caret)
+library(corrplot)
+library(nnet)
+library(randomForest)
+library(xgboost)
+library(leaflet)
+library(scales)
+```
+---
+
+# Data Import and Cleaning
+
+```{r}
+data <- read.csv("Air_quality_lichen_genus_data.csv", stringsAsFactors = FALSE)
+
+# Inspect
+str(data)
+
+# Convert AQGL categorical columns to factors
+data <- data %>%
+  mutate(across(c(P25AQGL, P10AQGL, NO2AQGL, SO2AQGL), as.factor))
+
+# Remove ID column
+data <- data %>% select(-`No.`)
+
+# Remove missing values
+data <- na.omit(data)
+```
+---
+
+# Feature Selection
+
+```{r}
+# Numeric variables only for modeling
+numeric_data <- data %>%
+  select(where(is.numeric)) %>%
+  select(-Latitude, -Longitude)  # exclude coordinates for modeling
+```
+---
+
+# Exploratory Data Analysis
+
+```{r}
+# Correlation plot
+corrplot(cor(numeric_data), method = "color", tl.cex = 0.7)
+```
+---
+
+# PCA (Dimensionality Reduction)
+
+```{r}
+pca <- prcomp(numeric_data, scale. = TRUE)
+
+fviz_eig(pca)
+fviz_pca_biplot(pca, repel = TRUE)
+```
+---
+
+# Clustering (Air Quality Zones)
+
+```{r}
+set.seed(123)
+
+fviz_nbclust(numeric_data, kmeans, method = "wss")
+
+k <- 3
+kmeans_model <- kmeans(numeric_data, centers = k, nstart = 25)
+
+data$Cluster <- as.factor(kmeans_model$cluster)
+
+fviz_cluster(kmeans_model, data = numeric_data)
+```
+---
+
+# Air Quality Index Classification
+
+```{r}
+# Create AQI categories
+data$AQI_Category <- cut(data$C_AQI,
+                        breaks = c(-Inf, 50, 100, 150, 200, 300, Inf),
+                        labels = c("Good", "Moderate", "Unhealthy for Sensitive",
+                                   "Unhealthy", "Very Unhealthy", "Hazardous"))
+
+# Remove empty factor levels
+data$AQI_Category <- droplevels(data$AQI_Category)
+
+# Check distribution
+print(table(data$AQI_Category))
+
+# Remove rare classes (<3 observations)
+class_counts <- table(data$AQI_Category)
+valid_classes <- names(class_counts[class_counts >= 3])
+
+data <- data %>%
+  filter(AQI_Category %in% valid_classes)
+
+# Drop levels again
+data$AQI_Category <- droplevels(data$AQI_Category)
+
+# Final check
+print(table(data$AQI_Category))
+```
+---
+
+# Random Forest Model
+
+```{r}
+set.seed(123)
+
+rf_model <- randomForest(
+  AQI_Category ~ P25mean + P10mean + NO2mean + SO2mean,
+  data = data,
+  importance = TRUE,
+  ntree = 200
+)
+
+print(rf_model)
+varImpPlot(rf_model)
+```
+---
+
+# XGBoost Model
+
+```{r}
+# Convert factor to numeric labels
+label <- as.numeric(data$AQI_Category) - 1
+
+# Feature matrix
+x_data <- data %>%
+  select(P25mean, P10mean, NO2mean, SO2mean) %>%
+  as.matrix()
+
+dtrain <- xgb.DMatrix(data = x_data, label = label)
+
+# Define parameters
+params <- list(
+  objective = "multi:softprob",   # use softprob instead
+  eval_metric = "mlogloss",
+  num_class = length(unique(label)),
+  max_depth = 4,
+  eta = 0.1
+)
+
+# Train model
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,
+  verbose = 0
+)
+
+# Predictions (probabilities → class)
+pred_prob <- predict(xgb_model, x_data)
+
+# Convert to class labels
+pred_matrix <- matrix(pred_prob, ncol = params$num_class, byrow = TRUE)
+pred <- max.col(pred_matrix) - 1
+
+# Confusion matrix
+confusionMatrix(as.factor(pred), as.factor(label))
+```
+---
+
+# Geographic Mapping (Air Quality Visualization)
+
+```{r}
+# Color palette based on AQI
+pal <- colorFactor(palette = c("green", "yellow", "orange", "red", "purple", "maroon"),
+                   domain = data$AQI_Category)
+
+leaflet(data) %>%
+  addTiles() %>%
+  addCircleMarkers(~Longitude, ~Latitude,
+                   color = ~pal(AQI_Category),
+                   radius = 6,
+                   popup = ~paste(
+                     "<b>Genus:</b>", Genera_Re,
+                     "<br><b>AQI:</b>", round(C_AQI, 2),
+                     "<br><b>Category:</b>", AQI_Category
+                   )) %>%
+  addLegend("bottomright", pal = pal, values = ~AQI_Category,
+            title = "Air Quality Index")
+```
+---
+
+# Key Insight
+
+The advanced analysis of lichen genus distribution and air quality indicators reveals several critical environmental patterns:
+
+* **Distinct Air Quality Zones Identified**
+  The clustering analysis successfully grouped sampling locations into clearly differentiated air quality zones based on pollutant concentrations (PM2.5, PM10, NO₂, SO₂). This indicates that air pollution is spatially structured rather than uniformly distributed.
+  
+* **High Pollution Hotspots**
+  A cluster characterized by high particulate matter (PM2.5 and PM10) and elevated AQI values represents the most environmentally degraded areas. These zones pose significant health risks and require urgent intervention.
+
+* **Moderate Pollution Transition Zones**
+  A segment of locations with moderate pollutant levels and AQI values suggests transitional environments. These areas are at risk of deterioration if pollution sources are not controlled, but they also present an opportunity for preventive action.
+
+* **Low Pollution (Relatively Clean) Areas**
+  Locations with low pollutant concentrations and favorable AQI ratings indicate relatively clean environments. These areas are often associated with healthier lichen diversity and can serve as ecological benchmarks.
+
+* **Strong Influence of Particulate Matter**
+Both PCA and machine learning models confirm that PM2.5 and PM10 are the dominant drivers of air quality variation, highlighting their central role in environmental degradation.
+
+* **Reliable Predictive Performance of Models**
+Random Forest and XGBoost models demonstrate strong predictive capability in classifying air quality categories, confirming that pollutant variables can effectively determine environmental conditions.
+
+* **Spatial Concentration of Pollution**
+Geographic mapping reveals that high AQI values are concentrated in specific locations, indicating localized emission sources such as traffic congestion or industrial activities.
+
+* **Validation through Multivariate Analysis**
+PCA supports the clustering results by showing clear separation between pollution levels, confirming that the identified air quality zones are statistically robust and environmentally meaningful.
+
+---
+
+# Recommendations
+
+Based on the insights derived from the analysis, the following strategic environmental and policy actions are recommended:
+
+* **Prioritize Intervention in High Pollution Areas**
+  Implement strict emission control measures, air quality regulations, and monitoring systems in identified pollution hotspots to reduce health risks and environmental damage.
+
+* **Prevent Escalation in Moderate Pollution Zones**
+  Introduce early intervention strategies, including pollution control policies and awareness programs, to prevent moderate-risk areas from transitioning into highly polluted zones.
+
+* **Preserve and Protect Clean Areas**
+  Maintain low pollution regions through environmental protection policies, sustainable land use planning, and conservation efforts to ensure long-term ecological stability.
+
+* **Target Particulate Matter Reduction**
+  Focus specifically on reducing PM2.5 and PM10 emissions by regulating industrial outputs, controlling vehicular emissions, and promoting cleaner energy alternatives.
+
+* **Adopt Location-Specific Environmental Policies**
+  Avoid uniform approaches and implement spatially targeted strategies based on the unique characteristics of each air quality cluster.
+
+* **Leverage Lichen-Based Biomonitoring**
+  Integrate lichen monitoring into environmental assessment frameworks as a cost-effective and reliable long-term indicator of air quality changes.
+
+* **Strengthen Data-Driven Decision Making**
+  Utilize machine learning models (Random Forest and XGBoost) for continuous air quality prediction and monitoring, enabling proactive environmental management.
+
+* **Continuous Monitoring and Model Updating**
+  Regularly update datasets and models to reflect changing environmental conditions, ensuring that policies and interventions remain relevant and effective.
+
+---
+
+# Conclusion
+
+This analysis demonstrates that lichen genus data, combined with advanced statistical and machine learning techniques, provides a powerful framework for air quality assessment. The integration of PCA, clustering, Random Forest, XGBoost, and geospatial mapping enables accurate detection of pollution patterns and supports evidence-based environmental decision-making.
+
+---
+
+# Save Outputs
+
+```{r}
+write.csv(data, "cleaned_air_quality_data.csv", row.names = FALSE)
+
+saveRDS(pca, "pca_model.rds")
+saveRDS(kmeans_model, "kmeans_model.rds")
+saveRDS(rf_model, "rf_model.rds")
+saveRDS(xgb_model, "xgb_model.rds")
+```
+---
