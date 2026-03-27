@@ -98,11 +98,14 @@ This project analyzes lichen genus distribution alongside pollutant concentratio
 
 ## 📂 Project Structure
 
+## Project Structure
+
+```text
 air-quality-analysis-project/
-├── Air_quality_lichen_genus_data.csv          # Raw input data
-├── air_quality_analysis_project.Rmd           # Main analysis (source)
-├── air_quality_analysis_project.html          # Rendered report (for GitHub Pages)
-├── cleaned_air_quality_data.csv               # Processed data
+├── Air_quality_lichen_genus_data.csv     # Raw input data
+├── air_quality_analysis_project.Rmd      # Main analysis (source)
+│   └── air_quality_analysis_project.html # Rendered report (for GitHub Pages)
+├── cleaned_air_quality_data.csv          # Processed data
 ├── pca_model.rds
 ├── kmeans_model.rds
 ├── rf_model.rds
